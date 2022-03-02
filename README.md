@@ -1,3 +1,5 @@
+![CI](https://github.com/KenExplore/events/actions/workflows/ci.yml/badge.svg)
+
 ## events
 
 A module for event-driven architecture with publish/subscribe.

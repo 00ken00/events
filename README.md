@@ -1,4 +1,4 @@
-![CI](https://github.com/KenExplore/events/actions/workflows/ci.yml/badge.svg)
+[![CI](https://github.com/KenExplore/events/actions/workflows/ci.yml/badge.svg)](https://github.com/KenExplore/events/actions/workflows/ci.yml)
 
 ## events
 

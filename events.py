@@ -1,7 +1,10 @@
-from typing import Literal, Any, ContextManager
+from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar
 from dataclasses import dataclass
 from collections import defaultdict
 from contextlib import contextmanager
+
+
+EventContent = TypeVar('EventContent')
 
 
 @dataclass
@@ -31,6 +34,19 @@ class Events:
                 type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values())))
         for callback in self._events[event]:
             callback(*args, **kwargs)
+
+
+class Event(Generic[EventContent]):
+    name: str
+
+    def __init__(self, events: Events):
+        self._events = events
+
+    def subscribe(self, callback: Callable[[EventContent], None]):
+        self._events.subscribe(self.name, callback)
+
+    def publish(self, content: EventContent):
+        self._events.publish(self.name, content)
 
 
 @contextmanager

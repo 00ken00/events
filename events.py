@@ -37,9 +37,8 @@ class Events:
 
 
 class Event(Generic[EventContent]):
-    name: str
-
-    def __init__(self, events: Events):
+    def __init__(self, name: str, events: Events):
+        self.name = name
         self._events = events
 
     def subscribe(self, callback: Callable[[EventContent], None]):

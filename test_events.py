@@ -11,10 +11,6 @@ class Data:
         self.data = {'args': args, 'kwargs': kwargs}
 
 
-class TestEvent(Event[float]):
-    name = 'test_event'
-
-
 def test_events():
     events = Events()
     data = Data()
@@ -28,7 +24,7 @@ def test_events():
 
 def test_event():
     events = Events()
-    event = TestEvent(events)
+    event = Event('test_event', events)
     data = Data()
     with capture_events(events) as records:
         event.subscribe(callback=data.record)

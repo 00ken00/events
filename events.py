@@ -27,14 +27,14 @@ class Events:
         if self.records is not None:
             record = EventRecord(type='subscribe', event=event, args=(callback.__qualname__,))
             self.records.append(record)
-            print(f'\n{len(self.records)}', record, end='')
+            print(f'{len(self.records)}.{record}')
         self._events[event].append(callback)
 
     def publish(self, event, *args, **kwargs):
         if self.records is not None:
             record = EventRecord(type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values()))
             self.records.append(record)
-            print(f'\n{len(self.records)}', record, end='')
+            print(f'{len(self.records)}.{record}')
         for callback in self._events[event]:
             callback(*args, **kwargs)
 
@@ -57,6 +57,7 @@ class Event(Generic[EventContent]):
 def capture_events(events: Events) -> ContextManager[list[EventRecord]]:
     records = []
     events.records = records
+    print('\n---captured events---')
     try:
         yield records
     finally:

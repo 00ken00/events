@@ -12,7 +12,7 @@ class Data:
 
 
 class TestEvent(Event[float]):
-    name_template = 'test_event'
+    name_template = '{var}_event'
 
 
 def test_events():
@@ -28,7 +28,8 @@ def test_events():
 
 def test_event():
     events = Events()
-    event = TestEvent(events)
+    pytest.raises(KeyError, TestEvent, events)  # will raise if var is not provided
+    event = TestEvent(events, var='test')
     data = Data()
     with capture_events(events) as records:
         event.subscribe(callback=data.record)

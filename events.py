@@ -25,13 +25,16 @@ class Events:
 
     def subscribe(self, event: str, callback: callable):
         if self.records is not None:
-            self.records.append(EventRecord(type='subscribe', event=event, args=(callback.__qualname__,)))
+            record = EventRecord(type='subscribe', event=event, args=(callback.__qualname__,))
+            self.records.append(record)
+            print(f'\n{len(self.records)}', record, end='')
         self._events[event].append(callback)
 
     def publish(self, event, *args, **kwargs):
         if self.records is not None:
-            self.records.append(EventRecord(
-                type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values())))
+            record = EventRecord(type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values()))
+            self.records.append(record)
+            print(f'\n{len(self.records)}', record, end='')
         for callback in self._events[event]:
             callback(*args, **kwargs)
 

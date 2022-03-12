@@ -24,6 +24,7 @@ def test_events():
     assert [str(_) for _ in records] == [
         'subscribe event_1: (Data.record)', 'publish event_1: (1, 2, None)']
     assert data.data == {'args': (1, 2), 'kwargs': {'c': None}}
+    assert events.inspect_subscription() == {'event_1': ['Data.record']}
 
 
 def test_event():

@@ -23,6 +23,9 @@ class Events:
         self._events = defaultdict(list)
         self.records = None  # type: list | None
 
+    def inspect_subscription(self) -> dict:
+        return {event: [_.__qualname__ for _ in callbacks] for event, callbacks in self._events.items()}
+
     def subscribe(self, event: str, callback: callable):
         if self.records is not None:
             record = EventRecord(type='subscribe', event=event, args=(callback.__qualname__,))

@@ -3,8 +3,14 @@ from dataclasses import dataclass
 from collections import defaultdict
 from contextlib import contextmanager
 
-
 EventContent = TypeVar('EventContent')
+
+
+def _format_template(template: str, **kwargs: Any) -> str:
+    try:
+        return template.format(**kwargs)
+    except KeyError as e:
+        raise ValueError(f'Missing argument {e.args[0]}')
 
 
 @dataclass
@@ -47,7 +53,7 @@ class Event(Generic[EventContent]):
 
     def __init__(self, events: Events, **kwargs):
         self._events = events
-        self.name = self.name_template.format(**kwargs)
+        self.name = _format_template(self.name_template, **kwargs)
 
     def subscribe(self, callback: Callable[[EventContent], None]):
         self._events.subscribe(self.name, callback)

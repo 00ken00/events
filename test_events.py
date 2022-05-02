@@ -1,18 +1,41 @@
 import pytest
 
-from events import capture_events, Events, Event, _format_template
+from events import capture_events, Events, Event, AsyncEvent, _format_template
 
 
-class Data:
+class DataRecorder:
     def __init__(self):
         self.data = None
 
     def record(self, *args, **kwargs):
         self.data = {'args': args, 'kwargs': kwargs}
 
+    async def async_record(self, *args, **kwargs):
+        self.data = {'args': args, 'kwargs': kwargs}
 
-class TestEvent(Event[float]):
-    name_template = '{var}_event'
+
+@pytest.fixture
+def events() -> Events:
+    return Events()
+
+
+@pytest.fixture
+def data_recorder() -> DataRecorder:
+    return DataRecorder()
+
+
+@pytest.fixture
+def dummy_event(events) -> Event[float]:
+    class _Event(Event[float]):
+        name_template = '{var}_event'
+    return _Event(events, var='test')
+
+
+@pytest.fixture
+def dummy_async_event(events) -> AsyncEvent[float]:
+    class _Event(AsyncEvent[float]):
+        name_template = '{var}_event'
+    return _Event(events, var='test')
 
 
 def test_format_template():
@@ -25,32 +48,44 @@ def test_format_template():
     assert str(excinfo.value) == 'Missing argument var'
 
 
-def test_events():
-    events = Events()
-    data = Data()
+def test_events(events, data_recorder):
     with capture_events(events) as records:
-        events.subscribe('event_1', data.record)
+        events.subscribe('event_1', data_recorder.record)
         events.publish('event_1', 1, 2, c=None)
+    assert events.inspect_subscription() == {'event_1': ['DataRecorder.record']}
     assert [str(_) for _ in records] == [
-        'subscribe event_1: (Data.record)', 'publish event_1: (1, 2, None)']
-    assert data.data == {'args': (1, 2), 'kwargs': {'c': None}}
-    assert events.inspect_subscription() == {'event_1': ['Data.record']}
+        'subscribe event_1: (DataRecorder.record)', 'publish event_1: (1, 2, None)']
+    assert data_recorder.data == {'args': (1, 2), 'kwargs': {'c': None}}
 
 
-def test_event():
-    events = Events()
-    data = Data()
-    events.subscribe('event_1', data.record)
-    events.publish('event_1', 1, 2, c=None)
-    assert data.data == {'args': (1, 2), 'kwargs': {'c': None}}
-    event = TestEvent(events, var='test')
-    data = Data()
+@pytest.mark.asyncio
+async def test_async_events(events):
+    async def coro(**kwargs):
+        print(kwargs)
+
+    events.subscribe('async_event_1', coro)
+    with pytest.raises(AssertionError):
+        events.publish('async_event_1', a=123)  # cannot publish when async callback exists
+    await events.async_publish('async_event_1', a=123)
+
+
+def test_event(events, data_recorder, dummy_event):
     with capture_events(events) as records:
-        event.subscribe(callback=data.record)
-        event.publish(content=1.23)
+        dummy_event.subscribe(callback=data_recorder.record)
+        dummy_event.publish(content=1.23)
     assert [str(_) for _ in records] == [
-        'subscribe test_event: (Data.record)', 'publish test_event: (1.23)']
-    assert data.data == {'args': (1.23,), 'kwargs': {}}
+        'subscribe test_event: (DataRecorder.record)', 'publish test_event: (1.23)']
+    assert data_recorder.data == {'args': (1.23,), 'kwargs': {}}
+
+
+@pytest.mark.asyncio
+async def test_async_event(events, data_recorder, dummy_async_event):
+    with capture_events(events) as records:
+        dummy_async_event.subscribe(callback=data_recorder.async_record)
+        await dummy_async_event.publish(content=1.23)
+    assert [str(_) for _ in records] == [
+        'subscribe test_event: (DataRecorder.async_record)', 'publish test_event: (1.23)']
+    assert data_recorder.data == {'args': (1.23,), 'kwargs': {}}
 
 
 if __name__ == '__main__':

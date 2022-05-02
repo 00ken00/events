@@ -1,4 +1,5 @@
-from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar
+import asyncio
+from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar, Awaitable
 from dataclasses import dataclass
 from collections import defaultdict
 from contextlib import contextmanager
@@ -39,27 +40,48 @@ class Events:
             print(f'{len(self.records)}.{record}')
         self._events[event].append(callback)
 
-    def publish(self, event, *args, **kwargs):
+    def _append_record(self, event: str, args: tuple, kwargs: dict):
+        record = EventRecord(type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values()))
+        self.records.append(record)
+        print(f'{len(self.records)}.{record}')
+
+    def publish(self, event: str, *args, **kwargs):
         if self.records is not None:
-            record = EventRecord(type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values()))
-            self.records.append(record)
-            print(f'{len(self.records)}.{record}')
+            self._append_record(event, args, kwargs)
         for callback in self._events[event]:
+            assert not asyncio.iscoroutinefunction(callback), f'callback:{callback.__qualname__} cannot be a coroutine'
             callback(*args, **kwargs)
 
+    async def async_publish(self, event: str, *args, **kwargs):
+        if self.records is not None:
+            self._append_record(event, args, kwargs)
+        for callback in self._events[event]:
+            assert asyncio.iscoroutinefunction(callback), f'callback:{callback.__qualname__} must be a coroutine'
+            await callback(*args, **kwargs)
 
-class Event(Generic[EventContent]):
+
+class _BaseEvent:
     name_template: str
 
     def __init__(self, events: Events, **kwargs):
         self._events = events
         self.name = _format_template(self.name_template, **kwargs)
 
+
+class Event(_BaseEvent, Generic[EventContent]):
     def subscribe(self, callback: Callable[[EventContent], None]):
         self._events.subscribe(self.name, callback)
 
     def publish(self, content: EventContent):
         self._events.publish(self.name, content)
+
+
+class AsyncEvent(_BaseEvent, Generic[EventContent]):
+    def subscribe(self, callback: Callable[[EventContent], Awaitable[None]]):
+        self._events.subscribe(self.name, callback)
+
+    async def publish(self, content: EventContent):
+        await self._events.async_publish(self.name, content)
 
 
 @contextmanager

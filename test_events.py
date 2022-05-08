@@ -49,13 +49,40 @@ def test_format_template():
 
 
 def test_events(events, data_recorder):
+    event_name = 'event_1'
     with capture_events(events) as records:
-        events.subscribe('event_1', data_recorder.record)
-        events.publish('event_1', 1, 2, c=None)
-    assert events.inspect_subscription() == {'event_1': ['DataRecorder.record']}
+        events.subscribe(event_name, data_recorder.record)
+        events.publish(event_name, 1, 2, c=None)
+    assert events.inspect_subscription() == {event_name: ['DataRecorder.record']}
     assert [str(_) for _ in records] == [
-        'subscribe event_1: (DataRecorder.record)', 'publish event_1: (1, 2, None)']
-    assert data_recorder.data == {'args': (1, 2), 'kwargs': {'c': None}}
+        f'subscribe {event_name}: (DataRecorder.record)',
+        f'publish {event_name}: (1, 2, None)']
+    assert data_recorder.data == (prev_data := {'args': (1, 2), 'kwargs': {'c': None}})
+
+    with capture_events(events) as records:
+        events.unsubscribe(event_name, data_recorder.record)
+        events.publish(event_name, 'will not recorded')
+    assert [str(_) for _ in records] == [
+        f'unsubscribe {event_name}: (DataRecorder.record)',
+        f'publish {event_name}: (will not recorded)']
+    assert data_recorder.data == prev_data
+
+
+def test_event(events, data_recorder, dummy_event):
+    with capture_events(events) as records:
+        dummy_event.subscribe(callback=data_recorder.record)
+        dummy_event.publish(content=1.23)
+    assert [str(_) for _ in records] == [
+        f'subscribe {dummy_event.name}: (DataRecorder.record)',
+        f'publish {dummy_event.name}: (1.23)']
+    assert data_recorder.data == (prev_data := {'args': (1.23,), 'kwargs': {}})
+    with capture_events(events) as records:
+        dummy_event.unsubscribe(callback=data_recorder.record)
+        dummy_event.publish(content=3.21)
+    assert [str(_) for _ in records] == [
+        f'unsubscribe {dummy_event.name}: (DataRecorder.record)',
+        f'publish {dummy_event.name}: (3.21)']
+    assert data_recorder.data == prev_data
 
 
 @pytest.mark.asyncio
@@ -67,15 +94,6 @@ async def test_async_events(events):
     with pytest.raises(AssertionError):
         events.publish('async_event_1', a=123)  # cannot publish when async callback exists
     await events.async_publish('async_event_1', a=123)
-
-
-def test_event(events, data_recorder, dummy_event):
-    with capture_events(events) as records:
-        dummy_event.subscribe(callback=data_recorder.record)
-        dummy_event.publish(content=1.23)
-    assert [str(_) for _ in records] == [
-        'subscribe test_event: (DataRecorder.record)', 'publish test_event: (1.23)']
-    assert data_recorder.data == {'args': (1.23,), 'kwargs': {}}
 
 
 @pytest.mark.asyncio

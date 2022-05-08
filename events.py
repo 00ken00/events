@@ -16,7 +16,7 @@ def _format_template(template: str, **kwargs: Any) -> str:
 
 @dataclass
 class EventRecord:
-    type: Literal['subscribe', 'publish']
+    type: Literal['subscribe', 'publish', 'unsubscribe']
     event: str
     args: tuple[Any]
 
@@ -39,6 +39,13 @@ class Events:
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         self._events[event].append(callback)
+
+    def unsubscribe(self, event: str, callback: callable):
+        if self.records is not None:
+            record = EventRecord(type='unsubscribe', event=event, args=(callback.__qualname__,))
+            self.records.append(record)
+            print(f'{len(self.records)}.{record}')
+        self._events[event].remove(callback)
 
     def _append_record(self, event: str, args: tuple, kwargs: dict):
         record = EventRecord(type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values()))
@@ -71,6 +78,9 @@ class _BaseEvent:
 class Event(_BaseEvent, Generic[EventContent]):
     def subscribe(self, callback: Callable[[EventContent], None]):
         self._events.subscribe(self.name, callback)
+
+    def unsubscribe(self, callback: Callable[[EventContent], None]):
+        self._events.unsubscribe(self.name, callback)
 
     def publish(self, content: EventContent):
         self._events.publish(self.name, content)

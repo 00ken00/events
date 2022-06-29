@@ -11,7 +11,8 @@ on:
 
 jobs:
   pytest:
-
+    env:
+      TZ: 'Asia/Tokyo'
     runs-on: ubuntu-latest
 
     steps:

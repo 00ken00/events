@@ -68,7 +68,7 @@ class EventCallback(Protocol[EventContent]):
 class Event(Generic[EventContent]):
     name_template: str
 
-    def __init__(self, events: Events, now: Callable[[], dt.datetime] = lambda: dt.datetime.now(), **kwargs):
+    def __init__(self, events: Events, now: Callable[[], dt.datetime] = dt.datetime.now, **kwargs):
         self._events = events
         self._now = now
         self.name = _format_template(self.name_template, **kwargs)

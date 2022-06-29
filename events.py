@@ -1,5 +1,5 @@
 import asyncio
-from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar, Awaitable
+from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar
 from dataclasses import dataclass
 from collections import defaultdict
 from contextlib import contextmanager
@@ -59,23 +59,14 @@ class Events:
             assert not asyncio.iscoroutinefunction(callback), f'callback:{callback.__qualname__} cannot be a coroutine'
             callback(*args, **kwargs)
 
-    async def async_publish(self, event: str, *args, **kwargs):
-        if self.records is not None:
-            self._append_record(event, args, kwargs)
-        for callback in self._events[event]:
-            assert asyncio.iscoroutinefunction(callback), f'callback:{callback.__qualname__} must be a coroutine'
-            await callback(*args, **kwargs)
 
-
-class _BaseEvent:
+class Event(Generic[EventContent]):
     name_template: str
 
     def __init__(self, events: Events, **kwargs):
         self._events = events
         self.name = _format_template(self.name_template, **kwargs)
 
-
-class Event(_BaseEvent, Generic[EventContent]):
     def subscribe(self, callback: Callable[[EventContent], None]):
         self._events.subscribe(self.name, callback)
 
@@ -84,14 +75,6 @@ class Event(_BaseEvent, Generic[EventContent]):
 
     def publish(self, content: EventContent):
         self._events.publish(self.name, content)
-
-
-class AsyncEvent(_BaseEvent, Generic[EventContent]):
-    def subscribe(self, callback: Callable[[EventContent], Awaitable[None]]):
-        self._events.subscribe(self.name, callback)
-
-    async def publish(self, content: EventContent):
-        await self._events.async_publish(self.name, content)
 
 
 @contextmanager

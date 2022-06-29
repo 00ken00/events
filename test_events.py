@@ -1,17 +1,20 @@
 import pytest
+import datetime as dt
+from typing import Any
 
 from events import capture_events, Events, Event, _format_template
+
+
+def _timestamp(n: int) -> dt.datetime:
+    return dt.datetime.fromtimestamp(n)
 
 
 class DataRecorder:
     def __init__(self):
         self.data = None
 
-    def record(self, *args, **kwargs):
-        self.data = {'args': args, 'kwargs': kwargs}
-
-    async def async_record(self, *args, **kwargs):
-        self.data = {'args': args, 'kwargs': kwargs}
+    def record(self, timestamp: dt.datetime, content: Any):
+        self.data = (timestamp, content)
 
 
 @pytest.fixture
@@ -28,7 +31,7 @@ def data_recorder() -> DataRecorder:
 def dummy_event(events) -> Event[float]:
     class _Event(Event[float]):
         name_template = '{var}_event'
-    return _Event(events, var='test')
+    return _Event(events, now=lambda: _timestamp(1), var='test')
 
 
 def test_format_template():
@@ -45,12 +48,12 @@ def test_events(events, data_recorder):
     event_name = 'event_1'
     with capture_events(events) as records:
         events.subscribe(event_name, data_recorder.record)
-        events.publish(event_name, 1, 2, c=None)
+        events.publish(event_name, timestamp=_timestamp(1), content=1.23)
     assert events.inspect_subscription() == {event_name: ['DataRecorder.record']}
     assert [str(_) for _ in records] == [
         f'subscribe {event_name}: (DataRecorder.record)',
-        f'publish {event_name}: (1, 2, None)']
-    assert data_recorder.data == (prev_data := {'args': (1, 2), 'kwargs': {'c': None}})
+        f'publish {event_name}: (1970-01-01 09:00:01, 1.23)']
+    assert data_recorder.data == (prev_data := (_timestamp(1), 1.23))
 
     with capture_events(events) as records:
         events.unsubscribe(event_name, data_recorder.record)
@@ -67,15 +70,22 @@ def test_event(events, data_recorder, dummy_event):
         dummy_event.publish(content=1.23)
     assert [str(_) for _ in records] == [
         f'subscribe {dummy_event.name}: (DataRecorder.record)',
-        f'publish {dummy_event.name}: (1.23)']
-    assert data_recorder.data == (prev_data := {'args': (1.23,), 'kwargs': {}})
+        f'publish {dummy_event.name}: (1970-01-01 09:00:01, 1.23)']
+    assert data_recorder.data == (prev_data := (_timestamp(1), 1.23))
     with capture_events(events) as records:
         dummy_event.unsubscribe(callback=data_recorder.record)
         dummy_event.publish(content=3.21)
     assert [str(_) for _ in records] == [
         f'unsubscribe {dummy_event.name}: (DataRecorder.record)',
-        f'publish {dummy_event.name}: (3.21)']
+        f'publish {dummy_event.name}: (1970-01-01 09:00:01, 3.21)']
     assert data_recorder.data == prev_data
+
+
+def test_type_hint(dummy_event):
+    def invalid_event_callback(timestamp: dt.datetime, content: int): pass
+    def valid_event_callback(timestamp: dt.datetime, content: float): pass
+    dummy_event.subscribe(invalid_event_callback)  # should highlight error in Pycharm
+    dummy_event.subscribe(valid_event_callback)
 
 
 if __name__ == '__main__':

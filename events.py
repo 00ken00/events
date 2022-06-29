@@ -1,6 +1,7 @@
 import asyncio
-from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar
+from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar, Protocol
 from dataclasses import dataclass
+import datetime as dt
 from collections import defaultdict
 from contextlib import contextmanager
 
@@ -60,21 +61,26 @@ class Events:
             callback(*args, **kwargs)
 
 
+class EventCallback(Protocol[EventContent]):
+    def __call__(self, timestamp: dt.datetime, content: EventContent) -> None: ...
+
+
 class Event(Generic[EventContent]):
     name_template: str
 
-    def __init__(self, events: Events, **kwargs):
+    def __init__(self, events: Events, now: Callable[[], dt.datetime] = lambda: dt.datetime.now(), **kwargs):
         self._events = events
+        self._now = now
         self.name = _format_template(self.name_template, **kwargs)
 
-    def subscribe(self, callback: Callable[[EventContent], None]):
+    def subscribe(self, callback: EventCallback[EventContent]):
         self._events.subscribe(self.name, callback)
 
-    def unsubscribe(self, callback: Callable[[EventContent], None]):
+    def unsubscribe(self, callback: EventCallback[EventContent]):
         self._events.unsubscribe(self.name, callback)
 
     def publish(self, content: EventContent):
-        self._events.publish(self.name, content)
+        self._events.publish(self.name, timestamp=self._now(), content=content)
 
 
 @contextmanager

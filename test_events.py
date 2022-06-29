@@ -17,6 +17,10 @@ class DataRecorder:
         self.data = (timestamp, content)
 
 
+class _Event(Event[float]):
+    name_template = '{var}_event'
+
+
 @pytest.fixture
 def events() -> Events:
     return Events()
@@ -28,9 +32,7 @@ def data_recorder() -> DataRecorder:
 
 
 @pytest.fixture
-def dummy_event(events) -> Event[float]:
-    class _Event(Event[float]):
-        name_template = '{var}_event'
+def dummy_event(events) -> _Event:
     return _Event(events, now=lambda: _timestamp(1), var='test')
 
 

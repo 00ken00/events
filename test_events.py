@@ -23,7 +23,7 @@ class _Event(Event[float]):
 
 @pytest.fixture
 def events() -> Events:
-    return Events()
+    return Events(now=lambda: _timestamp(0))
 
 
 @pytest.fixture
@@ -50,19 +50,19 @@ def test_events(events, data_recorder):
     event_name = 'event_1'
     with capture_events(events) as records:
         events.subscribe(event_name, data_recorder.record)
-        events.publish(event_name, timestamp=_timestamp(1), content=1.23)
+        events.publish(event_name, content=1.23)
     assert events.inspect_subscription() == {event_name: ['DataRecorder.record']}
     assert [str(_) for _ in records] == [
-        f'subscribe {event_name}: (DataRecorder.record)',
-        f'publish {event_name}: (1970-01-01 09:00:01, 1.23)']
-    assert data_recorder.data == (prev_data := (_timestamp(1), 1.23))
+        '1970-01-01 09:00:00 sub event_1: DataRecorder.record',
+        '1970-01-01 09:00:00 pub event_1: 1.23']
+    assert data_recorder.data == (prev_data := (_timestamp(0), 1.23))
 
     with capture_events(events) as records:
         events.unsubscribe(event_name, data_recorder.record)
         events.publish(event_name, 'will not recorded')
     assert [str(_) for _ in records] == [
-        f'unsubscribe {event_name}: (DataRecorder.record)',
-        f'publish {event_name}: (will not recorded)']
+        '1970-01-01 09:00:00 unsub event_1: DataRecorder.record',
+        '1970-01-01 09:00:00 pub event_1: will not recorded']
     assert data_recorder.data == prev_data
 
 
@@ -71,15 +71,15 @@ def test_event(events, data_recorder, dummy_event):
         dummy_event.subscribe(callback=data_recorder.record)
         dummy_event.publish(content=1.23)
     assert [str(_) for _ in records] == [
-        f'subscribe {dummy_event.name}: (DataRecorder.record)',
-        f'publish {dummy_event.name}: (1970-01-01 09:00:01, 1.23)']
-    assert data_recorder.data == (prev_data := (_timestamp(1), 1.23))
+        '1970-01-01 09:00:00 sub test_event: DataRecorder.record',
+        '1970-01-01 09:00:00 pub test_event: 1.23']
+    assert data_recorder.data == (prev_data := (_timestamp(0), 1.23))
     with capture_events(events) as records:
         dummy_event.unsubscribe(callback=data_recorder.record)
         dummy_event.publish(content=3.21)
     assert [str(_) for _ in records] == [
-        f'unsubscribe {dummy_event.name}: (DataRecorder.record)',
-        f'publish {dummy_event.name}: (1970-01-01 09:00:01, 3.21)']
+        '1970-01-01 09:00:00 unsub test_event: DataRecorder.record',
+        '1970-01-01 09:00:00 pub test_event: 3.21']
     assert data_recorder.data == prev_data
 
 

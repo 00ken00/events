@@ -1,11 +1,14 @@
-import asyncio
-from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar, Protocol
+from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar, Protocol, Optional
 from dataclasses import dataclass
 import datetime as dt
 from collections import defaultdict
 from contextlib import contextmanager
 
 EventContent = TypeVar('EventContent')
+
+
+class EventCallback(Protocol[EventContent]):
+    def __call__(self, timestamp: dt.datetime, content: EventContent) -> None: ...
 
 
 def _format_template(template: str, **kwargs: Any) -> str:
@@ -17,60 +20,52 @@ def _format_template(template: str, **kwargs: Any) -> str:
 
 @dataclass
 class EventRecord:
-    type: Literal['subscribe', 'publish', 'unsubscribe']
+    type: Literal['sub', 'pub', 'unsub']
     event: str
-    args: tuple[Any]
+    timestamp: dt.datetime
+    content: Any
 
     def __str__(self) -> str:
-        args_str = ', '.join(str(_) for _ in self.args)
-        return f'{self.type} {self.event}: ({args_str})'
+        return f'{self.timestamp} {self.type} {self.event}: {self.content}'
 
 
 class Events:
-    def __init__(self):
-        self._events = defaultdict(list)
-        self.records = None  # type: list | None
+    def __init__(self, now: Callable[[], dt.datetime] = dt.datetime.now):
+        self._now = now
+        self._events = defaultdict(list)  # type: dict[str, list[EventCallback]]
+        self.records = None  # type: Optional[list]
 
     def inspect_subscription(self) -> dict:
         return {event: [_.__qualname__ for _ in callbacks] for event, callbacks in self._events.items()}
 
-    def subscribe(self, event: str, callback: callable):
+    def subscribe(self, event: str, callback: EventCallback):
         if self.records is not None:
-            record = EventRecord(type='subscribe', event=event, args=(callback.__qualname__,))
+            record = EventRecord(type='sub', event=event, timestamp=self._now(), content=callback.__qualname__)
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         self._events[event].append(callback)
 
-    def unsubscribe(self, event: str, callback: callable):
+    def unsubscribe(self, event: str, callback: EventCallback):
         if self.records is not None:
-            record = EventRecord(type='unsubscribe', event=event, args=(callback.__qualname__,))
+            record = EventRecord(type='unsub', event=event, timestamp=self._now(), content=callback.__qualname__)
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         self._events[event].remove(callback)
 
-    def _append_record(self, event: str, args: tuple, kwargs: dict):
-        record = EventRecord(type='publish', event=event, args=tuple(args) + tuple(_ for _ in kwargs.values()))
-        self.records.append(record)
-        print(f'{len(self.records)}.{record}')
-
-    def publish(self, event: str, *args, **kwargs):
+    def publish(self, event: str, content: Any):
         if self.records is not None:
-            self._append_record(event, args, kwargs)
+            record = EventRecord(type='pub', event=event, timestamp=self._now(), content=content)
+            self.records.append(record)
+            print(f'{len(self.records)}.{record}')
         for callback in self._events[event]:
-            assert not asyncio.iscoroutinefunction(callback), f'callback:{callback.__qualname__} cannot be a coroutine'
-            callback(*args, **kwargs)
-
-
-class EventCallback(Protocol[EventContent]):
-    def __call__(self, timestamp: dt.datetime, content: EventContent) -> None: ...
+            callback(timestamp=self._now(), content=content)
 
 
 class Event(Generic[EventContent]):
     name_template: str
 
-    def __init__(self, events: Events, now: Callable[[], dt.datetime] = dt.datetime.now, **kwargs):
+    def __init__(self, events: Events, **kwargs):
         self._events = events
-        self._now = now
         self.name = _format_template(self.name_template, **kwargs)
 
     def subscribe(self, callback: EventCallback[EventContent]):
@@ -80,7 +75,7 @@ class Event(Generic[EventContent]):
         self._events.unsubscribe(self.name, callback)
 
     def publish(self, content: EventContent):
-        self._events.publish(self.name, timestamp=self._now(), content=content)
+        self._events.publish(self.name, content=content)
 
 
 @contextmanager

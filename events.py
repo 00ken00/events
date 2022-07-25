@@ -8,7 +8,7 @@ EventContent = TypeVar('EventContent')
 
 
 class EventCallback(Protocol[EventContent]):
-    def __call__(self, timestamp: dt.datetime, content: EventContent) -> None: ...
+    def __call__(self, content: EventContent) -> None: ...
 
 
 def _format_template(template: str, **kwargs: Any) -> str:
@@ -22,16 +22,14 @@ def _format_template(template: str, **kwargs: Any) -> str:
 class EventRecord:
     type: Literal['sub', 'pub', 'unsub']
     event: str
-    timestamp: dt.datetime
     content: Any
 
     def __str__(self) -> str:
-        return f'{self.timestamp} {self.type} {self.event}: {self.content}'
+        return f'{self.type} {self.event}: {self.content}'
 
 
 class Events:
-    def __init__(self, now: Callable[[], dt.datetime] = dt.datetime.now):
-        self._now = now
+    def __init__(self):
         self._events = defaultdict(list)  # type: dict[str, list[EventCallback]]
         self.records = None  # type: Optional[list]
 
@@ -40,25 +38,25 @@ class Events:
 
     def subscribe(self, event: str, callback: EventCallback):
         if self.records is not None:
-            record = EventRecord(type='sub', event=event, timestamp=self._now(), content=callback.__qualname__)
+            record = EventRecord(type='sub', event=event, content=callback.__qualname__)
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         self._events[event].append(callback)
 
     def unsubscribe(self, event: str, callback: EventCallback):
         if self.records is not None:
-            record = EventRecord(type='unsub', event=event, timestamp=self._now(), content=callback.__qualname__)
+            record = EventRecord(type='unsub', event=event, content=callback.__qualname__)
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         self._events[event].remove(callback)
 
     def publish(self, event: str, content: Any):
         if self.records is not None:
-            record = EventRecord(type='pub', event=event, timestamp=self._now(), content=content)
+            record = EventRecord(type='pub', event=event, content=content)
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         for callback in self._events[event]:
-            callback(timestamp=self._now(), content=content)
+            callback(content=content)
 
 
 class Event(Generic[EventContent]):

@@ -1,8 +1,9 @@
-from typing import Literal, Any, ContextManager, Callable, Generic, TypeVar, Protocol, Optional
+from typing import Literal, Any, ContextManager, Generic, TypeVar, Protocol, Optional
+import logging
 from dataclasses import dataclass
-import datetime as dt
 from collections import defaultdict
 from contextlib import contextmanager
+from loguru import logger
 
 EventContent = TypeVar('EventContent')
 
@@ -56,7 +57,11 @@ class Events:
             self.records.append(record)
             print(f'{len(self.records)}.{record}')
         for callback in self._events[event]:
-            callback(content=content)
+            try:
+                callback(content=content)
+            except Exception as e:
+                logger.error(f"event:'{event}' with content:'{content}' raised:'{e!r}'")
+                raise e
 
 
 class Event(Generic[EventContent]):

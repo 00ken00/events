@@ -83,6 +83,15 @@ def test_event(events, data_recorder, dummy_event):
     assert data_recorder.data == 1.23
 
 
+def test_event_error(events, dummy_event):
+    def _raise(content: float):
+        raise RuntimeError('test error')
+
+    dummy_event.subscribe(_raise)
+    with pytest.raises(RuntimeError, match='test error'):
+        dummy_event.publish(content=1.23)
+
+
 def test_type_hint(dummy_event):
     def invalid_event_callback(content: int): pass
     def valid_event_callback(content: float): pass

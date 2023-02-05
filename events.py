@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Literal, Any, ContextManager, Generic, TypeVar, Protocol, Optional
 from dataclasses import dataclass
 from collections import defaultdict
@@ -70,11 +71,13 @@ class Event(Generic[EventContent]):
         self._events = events
         self.name = _format_template(self.name_template, **kwargs)
 
-    def subscribe(self, callback: EventCallback[EventContent]):
+    def subscribe(self, callback: EventCallback[EventContent]) -> Event[EventContent]:
         self._events.subscribe(self.name, callback)
+        return self
 
-    def unsubscribe(self, callback: EventCallback[EventContent]):
+    def unsubscribe(self, callback: EventCallback[EventContent]) -> Event[EventContent]:
         self._events.unsubscribe(self.name, callback)
+        return self
 
     def publish(self, content: EventContent):
         self._events.publish(self.name, content=content)

@@ -68,8 +68,7 @@ def test_events(events, data_recorder):
 
 def test_event(events, data_recorder, dummy_event):
     with capture_events(events) as records:
-        dummy_event.subscribe(callback=data_recorder.record)
-        dummy_event.publish(content=1.23)
+        dummy_event.subscribe(callback=data_recorder.record).publish(content=1.23)
     assert [str(_) for _ in records] == [
         'sub test_event: DataRecorder.record',
         'pub test_event: 1.23']

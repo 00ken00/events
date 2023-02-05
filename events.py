@@ -1,5 +1,4 @@
 from typing import Literal, Any, ContextManager, Generic, TypeVar, Protocol, Optional
-import logging
 from dataclasses import dataclass
 from collections import defaultdict
 from contextlib import contextmanager
